@@ -1,0 +1,29 @@
+%rawOutput = readmatrix("205kg 42a.csv");
+rawOutput = readmatrix("straightOL.csv");
+olOutput = [];
+
+for i = 1:length(rawOutput)
+    if rawOutput(i,15) > 0
+        olOutput(end+1,:) = rawOutput(i,:);
+    end
+end
+
+bpCol = olOutput(:,15);
+speedCol = olOutput(:,1);
+timeCol = olOutput(:,2);
+distanceCol = olOutput(:, 3);
+longAccelCol = olOutput(:,5);
+crCol = olOutput(:,16);
+
+theoreticalMaxT = 242.3; % Theoretical max torque [Nm]
+vehicleMass = 205;
+
+possibleTorques = [];
+
+for i = 1:length(olOutput)
+    possibleTorques(end+1, 1) = -1 * longAccelCol(i) * vehicleMass * 0.153 / (bpCol(i)/100);
+end
+
+meanT = mean(possibleTorques)
+minT = min(possibleTorques)
+minTRear = 0.5 * minT

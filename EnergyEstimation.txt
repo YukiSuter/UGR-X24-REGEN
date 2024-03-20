@@ -1,0 +1,86 @@
+AMKTorqueData = readmatrix('Orange Torque.csv');
+AMKPowerData = readmatrix('Orange Power.csv');
+OLData = readmatrix('Limited to 1305kW.csv');
+
+OLDataName = '300kg FSAustria 2012';
+gearRatio = 14.2;
+maxBrakeTorque = 504;
+frontRearBrakeSplit = 0.723
+maxMotorTorque = 6.79; % Taking minMaxTorque (the lowest max torque)
+maxChargeCurrent = 26.2;
+
+maxRegenTorque = gearRatio * maxMotorTorque;
+frontBrakeTorque = maxBrakeTorque * frontRearBrakeSplit;
+rearBrakeTorque = maxBrakeTorque * (1-frontRearBrakeSplit);
+
+timeArray = OLData(:, 2);
+mSpeedArray = OLData(:,8);
+bTorqueArray = OLData(:,15) .* frontBrakeTorque / 100;
+
+% Torque vs Time Graph
+
+maxRTorqueArray = zeros(length(timeArray), 1) + maxRegenTorque;
+[c index] = min(abs((AMKTorqueData(:,1))-mSpeedArray'));
+closestTorqueArray = AMKTorqueData(index, 2) .* gearRatio;
+
+plot(timeArray, bTorqueArray)
+line(timeArray, maxRTorqueArray)
+line(timeArray, closestTorqueArray)
+xlabel('Torque [Nm]')
+ylabel('Time [s]')
+title(strcat(OLDataName , ' - Torque Time'))
+legend('Total Brake Torque','Minimum Max Regen Torque', 'Dynamic Max Regen Torque')
+
+saveas(gcf, strcat(OLDataName, ' torque_time.png'))
+
+% I_charge vs time (Assuming linear)
+
+[c index] = min(abs((AMKPowerData(:,1))-mSpeedArray'));
+closestPowerArray = AMKPowerData(index, 2)*1000;
+closestCurrentArray = closestPowerArray / 600 .* 2;
+
+expectedCurrentArray = closestCurrentArray .* (bTorqueArray./maxRTorqueArray);
+expectedCurrentLimitedArray = min(expectedCurrentArray, min(closestCurrentArray, maxChargeCurrent));
+
+maxChargeCurrent = zeros(length(timeArray), 1) + maxChargeCurrent;
+
+plot(timeArray, closestCurrentArray)
+line(timeArray, expectedCurrentArray)
+line(timeArray, expectedCurrentLimitedArray)
+line(timeArray, maxChargeCurrent)
+legend('Max regen current possible', 'Expected regen charging current', 'Limited regen charging current', 'Max charge current of cells')
+xlabel('Time [s]')
+ylabel('Current [a]')
+title(strcat(OLDataName , ' - Current Time'))
+saveas(gcf, strcat(OLDataName , ' current_time.png'))
+
+% Realistic regen charging current
+
+
+plot(timeArray, expectedCurrentLimitedArray)
+legend('Realistic max charging')
+xlabel('Time [s]')
+ylabel('Current [a]')
+title(strcat(OLDataName , ' - Realistic Current Time'))
+saveas(gcf, strcat(OLDataName , ' real_current_time.png'))
+
+% Overall charge regenerated
+hpToKw = OLData(:, 10) * 0.7457*1000;
+totalPowerRequired = trapz(timeArray, hpToKw)/3600;
+
+"Total power used over a lap of FSAustria 2012: " + totalPowerRequired + "Wh"
+
+A = [timeArray expectedCurrentLimitedArray];
+totalRegen = trapz(A(:,1), A(:,2))*600/3600;
+
+"Total regen (limited) over FSAustria 2012: " + totalRegen + "Wh"
+
+A = [timeArray expectedCurrentArray];
+totalRegen = trapz(A(:,1), A(:,2))*600/3600;
+
+"Total regen (unlimited) over FSAustria 2012: " + totalRegen + "Wh"
+
+
+
+
+
